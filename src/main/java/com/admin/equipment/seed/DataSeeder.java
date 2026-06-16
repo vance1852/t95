@@ -75,7 +75,6 @@ public class DataSeeder implements CommandLineRunner {
         seedInspectionRecords();
         seedHealthScoreSnapshots();
         seedPredictionsAndAlerts();
-        seedPredictionFeedbacks();
         System.out.println("预测性维护系统种子数据初始化完成");
     }
 
@@ -276,39 +275,64 @@ public class DataSeeder implements CommandLineRunner {
                 alertCount++;
             }
         }
+
+        seedHistoricalPredictionFeedbacks(equips);
+
         System.out.println("已生成预测工单: " + predCount + " 条, 异常预警: " + alertCount + " 条");
     }
 
-    private void seedPredictionFeedbacks() {
-        List<PredictiveMaintenanceOrder> preds = predictionRepo.findAll();
-        int count = 0;
-        for (PredictiveMaintenanceOrder p : preds) {
-            if (random.nextDouble() < 0.4) {
-                PredictionFeedback fb = new PredictionFeedback();
-                fb.setEquipmentId(p.getEquipmentId());
-                fb.setPredictionId(p.getId());
-                fb.setPredictedDate(p.getPredictedFaultDate());
-                boolean occurred = random.nextDouble() < 0.7;
-                fb.setFaultOccurred(occurred);
-                if (occurred && p.getPredictedFaultDate() != null) {
-                    int deviate = random.nextInt(10) - 3;
-                    fb.setActualDate(p.getPredictedFaultDate().plusDays(deviate));
-                    fb.setDaysDeviation(Math.abs(deviate));
-                    fb.setAccuracyScore(Math.max(0, 100 - Math.abs(deviate) * 5.0));
-                    fb.setFeedbackType("fault");
+    private void seedHistoricalPredictionFeedbacks(List<Equipment> equips) {
+        String[] inspectors = {"王工", "李工", "张工"};
+        for (Equipment eq : equips) {
+            for (int i = 0; i < 1 + random.nextInt(2); i++) {
+                int daysAgo = 10 + random.nextInt(40);
+                int predDays = 5 + random.nextInt(20);
+
+                PredictiveMaintenanceOrder pred = new PredictiveMaintenanceOrder();
+                pred.setEquipmentId(eq.getId());
+                pred.setTitle(String.format("[预测保养] %s 历史预测 #%d", eq.getName(), i + 1));
+                pred.setDescription("种子数据生成的历史预测记录");
+                pred.setPredictedFaultDate(LocalDateTime.now().minusDays(daysAgo).plusDays(predDays));
+                pred.setRemainingHealthDays(predDays);
+                pred.setCurrentHealthScore(55.0 + random.nextDouble() * 20);
+                pred.setRiskLevel(predDays <= 7 ? "critical" : (predDays <= 14 ? "warning" : "attention"));
+                pred.setPriority(predDays <= 7 ? "urgent" : (predDays <= 14 ? "high" : "medium"));
+                pred.setGeneratedAt(LocalDateTime.now().minusDays(daysAgo));
+                pred.setSuggestedActions("1. 检查关键指标\n2. 安排预防性保养\n3. 验证保养效果");
+                pred.setHealthScoreTrend("[]");
+
+                boolean faultOccurred = random.nextDouble() < 0.65;
+                int deviation = random.nextInt(8) - 2;
+                double accuracy = faultOccurred
+                        ? Math.max(0, 100 - Math.abs(deviation) * 5.0)
+                        : 0.0;
+
+                pred.setActualFaultOccurred(faultOccurred);
+                pred.setPredictionAccuracy(accuracy);
+                pred.setStatus("reviewed");
+                if (faultOccurred) {
+                    pred.setResolvedAt(pred.getPredictedFaultDate().plusDays(deviation));
                 } else {
-                    fb.setAccuracyScore(occurred ? 70.0 : 0.0);
+                    pred.setResolvedAt(LocalDateTime.now().minusDays(daysAgo).plusDays(predDays + 5));
                 }
-                fb.setRemark("种子自动生成的预测回看数据");
+                predictionRepo.save(pred);
+
+                PredictionFeedback fb = new PredictionFeedback();
+                fb.setEquipmentId(eq.getId());
+                fb.setPredictionId(pred.getId());
+                fb.setPredictedDate(pred.getPredictedFaultDate());
+                fb.setFaultOccurred(faultOccurred);
+                fb.setAccuracyScore(accuracy);
+                fb.setFeedbackType("fault");
+                fb.setRemark(faultOccurred ? "故障如期发生，预测准确" : "故障未发生，预测偏差");
+                if (faultOccurred && pred.getPredictedFaultDate() != null) {
+                    fb.setActualDate(pred.getPredictedFaultDate().plusDays(deviation));
+                    fb.setDaysDeviation(Math.abs(deviation));
+                }
+                fb.setCreatedAt(LocalDateTime.now().minusDays(Math.max(1, daysAgo - 5)));
                 feedbackRepo.save(fb);
-                p.setActualFaultOccurred(occurred);
-                p.setPredictionAccuracy(fb.getAccuracyScore());
-                p.setStatus("reviewed");
-                predictionRepo.save(p);
-                count++;
             }
         }
-        System.out.println("已生成预测回看反馈: " + count + " 条");
     }
 
     private Equipment newEquip(String code, String name, String location, String type, String status) {

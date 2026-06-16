@@ -89,14 +89,21 @@ public class RuntimeDataService {
         };
 
         double cumulativeHours = 1000 + random.nextDouble() * 6000;
+        LocalDateTime now = LocalDateTime.now();
+        int injected = 0;
 
         for (int d = days - 1; d >= 0; d--) {
             LocalDateTime dayStart = LocalDateTime.now().minusDays(d).toLocalDate().atStartOfDay();
             for (int s = 0; s < samplesPerDay; s++) {
+                LocalDateTime recordedAt = dayStart.plusHours((long) (24.0 * s / samplesPerDay))
+                        .plusMinutes(random.nextInt(59));
+                if (recordedAt.isAfter(now)) {
+                    continue;
+                }
+
                 EquipmentRuntimeData rd = new EquipmentRuntimeData();
                 rd.setEquipmentId(equipmentId);
-                rd.setRecordedAt(dayStart.plusHours((long) (24.0 * s / samplesPerDay))
-                        .plusMinutes(random.nextInt(59)));
+                rd.setRecordedAt(recordedAt);
 
                 double degradeFactor = 1 + (days - 1 - d) * 0.008 * healthDegrade;
                 double tempSpike = (random.nextDouble() < 0.03) ? random.nextDouble() * 20 : 0;

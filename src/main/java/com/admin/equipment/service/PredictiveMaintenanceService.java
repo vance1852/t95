@@ -117,8 +117,12 @@ public class PredictiveMaintenanceService {
         Equipment eq = equipmentRepo.findById(equipmentId).orElse(null);
         if (eq == null) return null;
 
+        List<PredictiveMaintenanceOrder> existing = predictionRepo.findByEquipmentIdOrderByGeneratedAtDesc(equipmentId);
+        boolean hasPending = existing.stream().anyMatch(p -> "pending".equals(p.getStatus()));
+        if (hasPending) return null;
+
         PredictionResult pred = predictRemainingHealth(equipmentId);
-        if (!pred.predictable || pred.remainingHealthDays == null || pred.remainingHealthDays > 30) {
+        if (!pred.predictable || pred.remainingHealthDays == null || pred.remainingHealthDays > 60) {
             return null;
         }
 
