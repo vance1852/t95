@@ -90,15 +90,15 @@ public class RuntimeDataService {
 
         double cumulativeHours = 1000 + random.nextDouble() * 6000;
 
-        for (int d = days; d >= 0; d--) {
-            LocalDateTime dayStart = LocalDateTime.now().minusDays(d);
+        for (int d = days - 1; d >= 0; d--) {
+            LocalDateTime dayStart = LocalDateTime.now().minusDays(d).toLocalDate().atStartOfDay();
             for (int s = 0; s < samplesPerDay; s++) {
                 EquipmentRuntimeData rd = new EquipmentRuntimeData();
                 rd.setEquipmentId(equipmentId);
                 rd.setRecordedAt(dayStart.plusHours((long) (24.0 * s / samplesPerDay))
-                        .plusMinutes(random.nextInt(60)));
+                        .plusMinutes(random.nextInt(59)));
 
-                double degradeFactor = 1 + (days - d) * 0.002 * healthDegrade;
+                double degradeFactor = 1 + (days - 1 - d) * 0.008 * healthDegrade;
                 double tempSpike = (random.nextDouble() < 0.03) ? random.nextDouble() * 20 : 0;
                 double vibSpike = (random.nextDouble() < 0.03) ? random.nextDouble() * 4 : 0;
 

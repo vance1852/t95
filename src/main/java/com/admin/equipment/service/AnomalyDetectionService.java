@@ -50,7 +50,7 @@ public class AnomalyDetectionService {
         if (temps.length > 5) {
             double mean = mean(temps);
             double std = stddev(temps, mean);
-            double latest = temps[temps.length - 1];
+            double latest = temps[0];
             if (latest > config.getTemperatureWarningMax()) {
                 alerts.add(createAlert(equipmentId, "metric", "temperature_c", latest,
                         config.getTemperatureWarningMax(), "critical",
@@ -73,7 +73,7 @@ public class AnomalyDetectionService {
         if (vibs.length > 5) {
             double mean = mean(vibs);
             double std = stddev(vibs, mean);
-            double latest = vibs[vibs.length - 1];
+            double latest = vibs[0];
             if (latest > config.getVibrationWarningMax()) {
                 alerts.add(createAlert(equipmentId, "metric", "vibration_mm_s", latest,
                         config.getVibrationWarningMax(), "critical",
@@ -99,11 +99,12 @@ public class AnomalyDetectionService {
 
         List<AnomalyAlert> saved = new ArrayList<>();
         for (AnomalyAlert a : alerts) {
-            if (alertRepo.findRecentMetricAlerts(equipmentId, a.getMetricName(), dayAgo).isEmpty()) {
+            boolean isCritical = "critical".equals(a.getSeverity());
+            if (isCritical || alertRepo.findRecentMetricAlerts(equipmentId, a.getMetricName(), dayAgo).isEmpty()) {
                 saved.add(alertRepo.save(a));
             }
         }
-        return saved;
+        return alerts;
     }
 
     public List<AnomalyAlert> detectHealthScoreDrop(Long equipmentId) {

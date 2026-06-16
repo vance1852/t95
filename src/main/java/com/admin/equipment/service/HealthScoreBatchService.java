@@ -77,14 +77,14 @@ public class HealthScoreBatchService {
 
         for (Equipment eq : equipmentRepo.findAll()) {
             try {
-                anomalyService.detectMetricAnomalies(eq.getId());
-                anomalyService.detectHealthScoreDrop(eq.getId());
-                alertsCreated++;
+                List<?> m = anomalyService.detectMetricAnomalies(eq.getId());
+                List<?> h = anomalyService.detectHealthScoreDrop(eq.getId());
+                alertsCreated += (m == null ? 0 : m.size()) + (h == null ? 0 : h.size());
             } catch (Exception ignored) {}
 
             try {
-                predictiveService.generatePredictiveOrder(eq.getId());
-                predCreated++;
+                Object pred = predictiveService.generatePredictiveOrder(eq.getId());
+                if (pred != null) predCreated++;
             } catch (Exception ignored) {}
         }
 

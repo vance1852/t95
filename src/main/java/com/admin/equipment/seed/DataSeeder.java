@@ -208,19 +208,25 @@ public class DataSeeder implements CommandLineRunner {
         List<Equipment> equips = equipmentRepo.findAll();
         int count = 0;
         for (Equipment eq : equips) {
+            double baseTrend = switch (eq.getStatus()) {
+                case "fault" -> 1.8;
+                case "warning" -> 1.2;
+                case "maintenance" -> 0.5;
+                default -> 0.6;
+            };
+            HealthScoreEngine.ScoreResult result0 = healthScoreEngine.calculateHealthScore(eq.getId());
             for (int d = 30; d >= 0; d -= 1) {
                 try {
-                    HealthScoreEngine.ScoreResult result = healthScoreEngine.calculateHealthScore(eq.getId());
                     HealthScoreSnapshot snap = new HealthScoreSnapshot();
                     snap.setEquipmentId(eq.getId());
-                    snap.setSnapshotTime(LocalDateTime.now().minusDays(d));
-                    double jitter = (random.nextDouble() - 0.5) * 6;
-                    double scoreWithTrend = result.totalScore + jitter - d * 0.15;
-                    snap.setTotalScore(Math.max(10, Math.min(99, scoreWithTrend)));
-                    snap.setMetricScore(Math.max(0, Math.min(100, result.metricScore + (random.nextDouble() - 0.5) * 5)));
-                    snap.setFaultScore(Math.max(0, Math.min(100, result.faultScore)));
-                    snap.setMaintenanceScore(Math.max(0, Math.min(100, result.maintenanceScore)));
-                    snap.setInspectionScore(Math.max(0, Math.min(100, result.inspectionScore)));
+                    snap.setSnapshotTime(LocalDateTime.now().minusDays(d).toLocalDate().atStartOfDay().plusHours(8));
+                    double jitter = (random.nextDouble() - 0.5) * 4;
+                    double scoreWithTrend = result0.totalScore + jitter + (d - 15) * baseTrend;
+                    snap.setTotalScore(Math.max(15, Math.min(97, scoreWithTrend)));
+                    snap.setMetricScore(Math.max(0, Math.min(100, result0.metricScore + (random.nextDouble() - 0.5) * 5)));
+                    snap.setFaultScore(Math.max(0, Math.min(100, result0.faultScore)));
+                    snap.setMaintenanceScore(Math.max(0, Math.min(100, result0.maintenanceScore)));
+                    snap.setInspectionScore(Math.max(0, Math.min(100, result0.inspectionScore)));
                     snap.setMetricWeight(0.35);
                     snap.setFaultWeight(0.30);
                     snap.setMaintenanceWeight(0.20);
